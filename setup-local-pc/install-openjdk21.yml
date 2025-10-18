@@ -1,0 +1,31 @@
+---
+- name: Install OpenJDK 21 on RHEL 10
+  hosts: localhost
+  become: yes
+  tasks:
+    - name: Ensure package metadata is up-to-date
+      dnf:
+        name: "*"
+        state: latest
+        update_cache: yes
+
+
+    - name: Install OpenJDK 21 if not installed
+      dnf:
+        name:
+          - java-21-openjdk
+        state: present
+      register: java_install
+
+    - name: Check Java version after installation
+      command: java -version
+      register: java_version
+      changed_when: false
+
+    - name: Display installed Java version
+      debug:
+        msg: 
+        - "Installed Java Version : "
+        - "{{ java_version.stderr_lines | default([]) + java_version.stdout_lines | default([]) }}"
+        - "If this version is different from Java 21, use alternatives to set default java to 21"
+
