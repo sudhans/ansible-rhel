@@ -1,0 +1,81 @@
+---
+- name: Install kubectl and kind on RHEL
+  hosts: localhost
+  become: yes
+  vars:
+    kubectl_version: "v1.34.0"   # Use 'stable' or specific version like 'v1.34.0'
+    kind_version: "v0.30.0"     # Use the latest kind release
+    kind_cluster_name: "default-cluster"
+    current_user: "{{ lookup('env','USER') }}"
+    kind_binary_path: /usr/local/bin/kind
+    kubectl_binary_path: /usr/local/bin/kubectl
+
+  tasks:
+
+    - name: Install dependencies
+      dnf:
+        name:
+          - curl
+          - tar
+        state: present
+
+    - name: Install kubectl
+      get_url:
+        url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/amd64/kubectl"
+        dest: "{{ kubectl_binary_path }}"
+        mode: '0755'
+      register: kubectl_download
+      retries: 3
+      delay: 5
+      until: kubectl_download is succeeded
+
+    - name: Verify kubectl installation
+      command: /usr/local/bin/kubectl version --client
+      register: kubectl_check
+      changed_when: false
+
+    - name: Install kind
+      get_url:
+        url: "https://kind.sigs.k8s.io/dl/{{ kind_version }}/kind-linux-amd64"
+        dest: "{{ kind_binary_path }}"
+        mode: '0755'
+      register: kind_download
+      retries: 3
+      delay: 5
+      until: kind_download is succeeded
+
+    - name: Verify kind installation
+      command: /usr/local/bin/kind --version
+      register: kind_check
+      changed_when: false
+
+    - name: Ensure current user is in docker group (required for kind)
+      user:
+        name: "{{ current_user }}"
+        groups: docker
+        append: yes
+
+    - name: Check if kind cluster already exists
+      command: kind get clusters
+      register: kind_clusters
+      changed_when: false
+      failed_when: false
+      become: false
+
+    - name: Create a single-node kind cluster
+      shell: |
+        newgrp docker <<EOF
+        kind create cluster --name {{ kind_cluster_name }}
+        EOF
+      when: kind_cluster_name not in kind_clusters.stdout_lines
+      become: false
+
+    - name: Verify cluster nodes
+      command: kubectl get nodes
+      register: cluster_nodes
+      changed_when: false
+      become: false
+
+    - name: Display cluster nodes
+      debug:
+        msg: "{{ cluster_nodes.stdout }}"

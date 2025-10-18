@@ -48,7 +48,7 @@
         append: yes
 
     - name: Verify Docker installation
-      ansible.builtin.shell: |
+      shell: |
         newgrp docker <<EOF
         docker run hello-world
         EOF
