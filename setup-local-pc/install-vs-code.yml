@@ -1,0 +1,43 @@
+---
+- name: Install Visual Studio Code on RHEL 10
+  hosts: localhost
+  become: yes
+  tasks:
+    - name: Ensure required dependencies are installed
+      yum:
+        name:
+          - wget
+          - gpg
+        state: present
+
+    - name: Import Microsoft GPG key
+      rpm_key:
+        key: https://packages.microsoft.com/keys/microsoft.asc
+        state: present
+
+    - name: Add Visual Studio Code repository
+      copy:
+        dest: /etc/yum.repos.d/vscode.repo
+        content: |
+          [code]
+          name=Visual Studio Code
+          baseurl=https://packages.microsoft.com/yumrepos/vscode
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+
+    - name: Install Visual Studio Code
+      yum:
+        name: code
+        state: present
+
+    - name: Verify VS Code installation
+      command: code --version
+      become: no
+      register: vscode_version
+      changed_when: false
+
+    - name: Display VS Code version
+      debug:
+        msg: "Installed VS Code version: {{ vscode_version.stdout }}"
+
