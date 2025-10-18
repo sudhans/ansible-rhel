@@ -1,0 +1,23 @@
+- name: Install Golang on RHEL using dnf
+  hosts: localhost
+  become: yes
+  tasks:
+    - name: Ensure package metadata is up-to-date
+      dnf:
+        name: "*"
+        state: latest
+        update_cache: yes
+
+    - name: Install Golang
+      dnf:
+        name: golang
+        state: present
+
+    - name: Verify Go installation
+      command: go version
+      register: go_version_check
+      changed_when: false
+
+    - name: Display Go version
+      debug:
+        msg: "{{ go_version_check.stdout }}"
