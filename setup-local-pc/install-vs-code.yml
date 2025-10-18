@@ -4,7 +4,7 @@
   become: yes
   tasks:
     - name: Ensure required dependencies are installed
-      yum:
+      dnf:
         name:
           - wget
           - gpg
@@ -27,7 +27,7 @@
           gpgkey=https://packages.microsoft.com/keys/microsoft.asc
 
     - name: Install Visual Studio Code
-      yum:
+      dnf:
         name: code
         state: present
 
