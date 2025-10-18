@@ -1,0 +1,58 @@
+---
+- name: Install Docker CE on RHEL
+  hosts: localhost
+  become: yes
+  vars:
+    docker_repo_url: https://download.docker.com/linux/rhel/docker-ce.repo
+    docker_packages:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    current_user: "{{ lookup('env', 'USER') }}"
+
+
+  tasks:
+    - name: Ensure dnf-plugins-core is installed
+      dnf:
+        name: dnf-plugins-core
+        state: present
+
+    - name: Add Docker CE repository
+      command:
+        cmd: dnf config-manager --add-repo {{ docker_repo_url }}
+      args:
+        creates: /etc/yum.repos.d/docker-ce.repo
+
+    - name: Install Docker CE packages
+      dnf:
+        name: "{{ docker_packages }}"
+        state: present
+
+    - name: Enable and start Docker service
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: Create docker group if it doesn't exist
+      group:
+        name: docker
+        state: present
+
+    - name: Add current user to docker group
+      user:
+        name: "{{ current_user }}"
+        groups: docker
+        append: yes
+
+    - name: Verify Docker installation
+      ansible.builtin.shell: |
+        newgrp docker <<EOF
+        docker run hello-world
+        EOF
+      register: docker_test
+      failed_when: "'Hello from Docker!' not in docker_test.stdout"
+      changed_when: false
+      become: false  # Run as current user (after group add)
