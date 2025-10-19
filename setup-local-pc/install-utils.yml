@@ -1,0 +1,47 @@
+- name: Install Utils using dnf
+  hosts: localhost
+  become: yes
+  vars:
+    media_packages:
+      - audacious
+      - ffmpeg
+      - gstreamer1-plugins-bad-freeworld
+
+  tasks:
+    - name: Enable EPEL repository
+      ansible.builtin.dnf:
+        name: epel-release
+        state: present
+
+    - name: Enable RPM Fusion Free and Nonfree repositories
+      ansible.builtin.shell: |
+        rhelver=$(rpm -E %rhel)
+        dnf install -y \
+           https://download1.rpmfusion.org/free/el/rpmfusion-free-release-${rhelver}.noarch.rpm \
+           https://download1.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-${rhelver}.noarch.rpm
+      register: rpmfusion_install
+      changed_when: "'Complete!' in rpmfusion_install.stdout or 'Installed' in rpmfusion_install.stdout or 'Upgraded' in rpmfusion_install.stdout"
+
+ 
+    - name: Ensure package metadata is up-to-date
+      dnf:
+        name: "*"
+        state: latest
+        update_cache: yes
+
+    - name: Install Audacious - Audio Player and dependencies
+      dnf:
+        name: "{{ media_packages }}"
+        state: present
+ 
+    - name: Check if full ffmpeg is already installed
+      shell: rpm -q ffmpeg
+      register: ffmpeg_check
+      ignore_errors: true
+
+    - name: Replace ffmpeg-free with full ffmpeg
+      command:
+        cmd: dnf swap ffmpeg-free ffmpeg --allowerasing -y
+      when: ffmpeg_check.rc != 0
+     
+
