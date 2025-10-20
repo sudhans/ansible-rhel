@@ -1,0 +1,40 @@
+---
+- name: Install PowerShell on RHEL 10
+  hosts: localhost
+  become: yes
+
+  tasks:
+
+    - name: Ensure required dependencies are installed
+      dnf:
+        name:
+          - dnf-plugins-core
+          - curl
+        state: present
+
+    - name: Add Microsoft Yum repository for RHEL 9 (compatible with RHEL 10)
+      command:
+        cmd: >
+          dnf config-manager --add-repo
+          https://packages.microsoft.com/config/rhel/9/prod.repo
+      args:
+        creates: /etc/yum.repos.d/microsoft-prod.repo
+
+    - name: Import Microsoft GPG key
+      rpm_key:
+        key: https://packages.microsoft.com/keys/microsoft.asc
+        state: present
+
+    - name: Install PowerShell (7.5.3 as on 20th Oct 2025)
+      dnf:
+        name: powershell
+        state: present
+
+    - name: Verify PowerShell installation
+      command: pwsh -v
+      register: pwsh_version
+      changed_when: false
+
+    - name: Display PowerShell version
+      debug:
+        msg: "Installed PowerShell version: {{ pwsh_version.stdout }}"
