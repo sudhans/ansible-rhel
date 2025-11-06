@@ -1,0 +1,65 @@
+---
+- name: Install JetBrains Toolbox on RHEL 10
+  hosts: localhost
+  become: yes
+  tasks:
+
+    - name: Ensure dependencies are installed
+      package:
+        name:
+          - curl
+          - tar
+        state: present
+
+    - name: Create temporary directory for toolbox
+      file:
+        path: /tmp/jetbrains_toolbox
+        state: directory
+
+    - name: Download latest JetBrains Toolbox tarball
+      get_url:
+        url: https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.0.1.59888.tar.gz
+        dest: /tmp/jetbrains_toolbox/jetbrains-toolbox.tar.gz
+        mode: '0644'
+
+    - name: Extract JetBrains Toolbox
+      unarchive:
+        src: /tmp/jetbrains_toolbox/jetbrains-toolbox.tar.gz
+        dest: /usr/local/bin
+        remote_src: yes
+      register: extract_result
+
+    - name: Find toolbox directory
+      find:
+        paths: /usr/local/bin/
+        patterns: "jetbrains-toolbox-*"
+        file_type: directory
+      register: toolbox_dir
+
+    - name: Create symlink for jetbrains-toolbox binary
+      ansible.builtin.file:
+        src: "{{ toolbox_dir.files[0].path }}"
+        dest: /usr/local/bin/jetbrains-toolbox
+        state: link    
+
+    - name: Create desktop entry for JetBrains Toolbox
+      copy:
+        dest: /usr/share/applications/jetbrains-toolbox.desktop
+        content: |
+          [Desktop Entry]
+          Name=JetBrains Toolbox
+          Comment=Manage JetBrains IDEs
+          Exec=/usr/local/bin/jetbrains-toolbox/bin/jetbrains-toolbox
+          Icon=/usr/local/bin/jetbrains-toolbox/bin/toolbox-tray-color.png
+          Terminal=false
+          Type=Application
+          StartupNotify=false
+          X-AppImage-Integrate=false
+          MimeType=x-scheme-handler/jetbrains;
+          Categories=Development;IDE;
+        mode: '0644'
+
+    - name: Clean up temporary directory
+      file:
+        path: /tmp/jetbrains_toolbox
+        state: absent
