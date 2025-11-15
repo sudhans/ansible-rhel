@@ -4,6 +4,8 @@
   vars:
     dev_packages:
       - openssl-devel
+      - gcc-c++
+      - make
 
   tasks:
     - name: Enable EPEL repository
