@@ -1,0 +1,36 @@
+- name: Install Dev Tools using dnf
+  hosts: localhost
+  become: yes
+  vars:
+    dev_packages:
+      - openssl-devel
+
+  tasks:
+    - name: Enable EPEL repository
+      ansible.builtin.dnf:
+        name: epel-release
+        state: present
+
+    - name: Enable RPM Fusion Free and Nonfree repositories
+      ansible.builtin.shell: |
+        rhelver=$(rpm -E %rhel)
+        dnf install -y \
+           https://download1.rpmfusion.org/free/el/rpmfusion-free-release-${rhelver}.noarch.rpm \
+           https://download1.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-${rhelver}.noarch.rpm
+      register: rpmfusion_install
+      changed_when: "'Complete!' in rpmfusion_install.stdout or 'Installed' in rpmfusion_install.stdout or 'Upgraded' in rpmfusion_install.stdout"
+
+ 
+    - name: Ensure package metadata is up-to-date
+      dnf:
+        name: "*"
+        state: latest
+        update_cache: yes
+
+    - name: Install Dev Tools
+      dnf:
+        name: "{{ dev_packages }}"
+        state: present
+ 
+     
+
