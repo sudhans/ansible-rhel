@@ -6,6 +6,10 @@
   vars:
     aws_cli_url_x86_64: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
     aws_install_tmp: "/tmp/awscliv2_install"
+    sam_cli_url: "https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip"
+    sam_zip_path: "/tmp/aws-sam-cli.zip"
+    sam_extract_dir: "/tmp/sam-installation"
+
   tags: [awscli, aws]
   tasks:
     - name: Ensure this playbook runs only on RHEL-family hosts
@@ -77,72 +81,45 @@
       debug:
         var: aws_version.stdout
 
-    - name: Set SAM CLI download URLs and temp dir
-      set_fact:
-        sam_url_x86_64: "https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip"
-        sam_install_tmp: "/tmp/sam_install"
+    - name: Download AWS SAM CLI zip
+      get_url:
+        url: "{{ sam_cli_url }}"
+        dest: "{{ sam_zip_path }}"
+        mode: '0644'
+        force: yes
 
-    - name: Fail if architecture is unsupported for SAM CLI
-      fail:
-        msg: "Unsupported architecture {{ ansible_architecture }} for AWS SAM CLI."
-      when: ansible_architecture not in ['x86_64']
-
-    - name: Set SAM download URL for current architecture
-      set_fact:
-        sam_download_url: "{{ sam_url_x86_64  }}"
-
-    - name: Create temporary SAM install directory
+    - name: Remove any previous extraction directory
       file:
-        path: "{{ sam_install_tmp }}"
+        path: "{{ sam_extract_dir }}"
+        state: absent
+
+    - name: Create extraction directory
+      file:
+        path: "{{ sam_extract_dir }}"
         state: directory
         mode: '0755'
 
-    - name: Download AWS SAM CLI archive
-      get_url:
-        url: "{{ sam_download_url }}"
-        dest: "{{ sam_install_tmp }}/aws-sam-cli.zip"
-        mode: '0644'
-        timeout: 60
-
-    - name: Unarchive AWS SAM CLI
+    - name: Unzip SAM CLI package
       unarchive:
-        src: "{{ sam_install_tmp }}/aws-sam-cli.zip"
-        dest: "{{ sam_install_tmp }}"
+        src: "{{ sam_zip_path }}"
+        dest: "{{ sam_extract_dir }}"
         remote_src: yes
 
-    - name: Find sam binary in extracted files
-      find:
-        paths: "{{ sam_install_tmp }}"
-        patterns: sam
-        file_type: file
-        recurse: yes
-      register: sam_find
+    - name: Check if SAM CLI is already installed
+      stat:
+        path: /usr/local/aws-sam-cli/current
+      register: sam_installed
 
-    - name: Install sam binary to /usr/local/bin
-      copy:
-        src: "{{ item.path }}"
-        dest: /usr/local/bin/sam
-        mode: '0755'
-        remote_src: yes
-      loop: "{{ sam_find.files }}"
-      when: sam_find.matched > 0
+    - name: Run SAM install script (install or update)
+      command: "{{ sam_extract_dir }}/install {{ '--update' if sam_installed.stat.exists else '' }}"
+      args:
+        chdir: "{{ sam_extract_dir }}"
 
-    - name: Fail if sam binary not found after extraction
-      fail:
-        msg: "Could not find 'sam' binary in the SAM CLI archive."
-      when: sam_find.matched == 0
-
-    - name: Clean up SAM temporary files
-      file:
-        path: "{{ sam_install_tmp }}"
-        state: absent
-
-    - name: Show installed AWS SAM CLI version
-      command: sam --version
-      register: sam_version
+    - name: Verify SAM CLI version
+      command: /usr/local/bin/sam --version
+      register: sam_version_output
       changed_when: false
-      failed_when: false
 
-    - name: Display AWS SAM CLI version
+    - name: Show installed SAM version
       debug:
-        var: sam_version.stdout
+        msg: "{{ sam_version_output.stdout }}"
