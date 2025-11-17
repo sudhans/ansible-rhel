@@ -1,0 +1,78 @@
+---
+- name: Install AWS CLI v2 on RHEL/CentOS
+  hosts: localhost
+  become: yes
+  gather_facts: yes
+  vars:
+    aws_cli_url_x86_64: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+    aws_install_tmp: "/tmp/awscliv2_install"
+  tags: [awscli, aws]
+  tasks:
+    - name: Ensure this playbook runs only on RHEL-family hosts
+      assert:
+        that: "ansible_facts['os_family'] == 'RedHat'"
+        fail_msg: "This playbook is intended for RHEL/CentOS family hosts."
+
+    - name: Ensure required system packages are installed
+      package:
+        name:
+          - unzip
+          - curl
+          - python3
+          - groff
+          - less
+        state: present
+
+    - name: Fail if architecture is unsupported
+      fail:
+        msg: "Unsupported architecture {{ ansible_architecture }} for AWS CLI v2."
+      when: ansible_architecture not in ['x86_64', 'aarch64']
+
+    - name: Set the download URL for the current architecture
+      set_fact:
+        aws_cli_download_url: "{{ aws_cli_url_x86_64  }}"
+
+    - name: Create temporary install directory
+      file:
+        path: "{{ aws_install_tmp }}"
+        state: directory
+        mode: '0755'
+
+    - name: Download AWS CLI v2 archive
+      get_url:
+        url: "{{ aws_cli_download_url }}"
+        dest: "{{ aws_install_tmp }}/awscliv2.zip"
+        mode: '0644'
+        timeout: 60
+
+    - name: Unarchive AWS CLI v2
+      unarchive:
+        src: "{{ aws_install_tmp }}/awscliv2.zip"
+        dest: "{{ aws_install_tmp }}"
+        remote_src: yes
+
+    - name: Install AWS CLI v2 (idempotent)
+      command: "{{ aws_install_tmp }}/aws/install -i /usr/local/aws-cli -b /usr/local/bin"
+      args:
+        creates: /usr/local/bin/aws
+
+    - name: Ensure aws binary is executable
+      file:
+        path: /usr/local/bin/aws
+        state: file
+        mode: '0755'
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Clean up temporary files
+      file:
+        path: "{{ aws_install_tmp }}"
+        state: absent
+
+    - name: Show installed AWS CLI version
+      command: /usr/local/bin/aws --version
+      register: aws_version
+      changed_when: false
+
+    - name: Display AWS CLI version
+      debug:
+        var: aws_version.stdout
