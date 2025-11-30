@@ -6,6 +6,8 @@
       - audacious
       - ffmpeg
       - gstreamer1-plugins-bad-freeworld
+      - vlc
+      - audacious-plugins-ffaudio
 
   tasks:
     - name: Enable EPEL repository
@@ -29,7 +31,7 @@
         state: latest
         update_cache: yes
 
-    - name: Install Audacious - Audio Player and dependencies
+    - name: Install Media Players and dependencies
       dnf:
         name: "{{ media_packages }}"
         state: present
