@@ -6,6 +6,10 @@
       - openssl-devel
       - gcc-c++
       - make
+      - sysstat
+      - virt-install
+      - libvirt-client
+      - libguestfs-tools
 
   tasks:
     - name: Enable EPEL repository
