@@ -13,6 +13,7 @@
       - htop
       - pcp
       - pcp-system-tools
+      - ntfs-3g
 
   tasks:
     - name: Enable EPEL repository
