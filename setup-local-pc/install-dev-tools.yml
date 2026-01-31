@@ -6,6 +6,7 @@
       - openssl-devel
       - gcc-c++
       - make
+      - cmake
       - sysstat
       - virt-install
       - libvirt-client
