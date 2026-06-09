@@ -1,21 +1,25 @@
 ---
 - name: Install OpenCode
   hosts: localhost
-  become: yes
+  gather_facts: true
 
   tasks:
+    - name: Check if OpenCode is installed
+      ansible.builtin.command: opencode --version
+      register: opencode_check
+      ignore_errors: true
+      changed_when: false
+
     - name: Ensure curl is installed
+      become: true
       ansible.builtin.dnf:
         name: curl
         state: present
+      when: opencode_check.rc != 0
 
     - name: Install OpenCode
       ansible.builtin.shell: |
         curl -fsSL https://opencode.ai/install | bash
       args:
         executable: /bin/bash
-      register: opencode_install
-
-    - name: Display installation output
-      ansible.builtin.debug:
-        var: opencode_install.stdout_lines
+      when: opencode_check.rc != 0
